@@ -1,0 +1,53 @@
+﻿using HouseTracker.Analysis;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace HouseTracker.Reports
+{
+    internal class SummaryPrinter
+    {
+        public void Print(List<QuarterChange> changes, PriceSummary summary)
+        {
+            Console.WriteLine($"Read {changes.Count} quarters for Belfast");
+            Console.WriteLine();
+            Console.WriteLine($"{"Quarter",-10}{"Price",12}{"Change",12}{"Change %",10}");
+
+            foreach (var row in changes)
+            {
+                if (row.Change is null)
+                {
+                    Console.WriteLine($"{row.Quarter,-10}{row.Price,12:£#,0}{"-",12}{"-",10}");
+                }
+                else
+                {
+                    Console.WriteLine($"{row.Quarter,-10}{row.Price,12:£#,0}{row.Change,12:+£#,0;-£#,0;£0}{row.ChangePercent,9:+0.0;-0.0;0.0}%");
+                }
+            }
+
+            Console.WriteLine("-------------------------------------------------------------------------------------------------------------------");
+            Console.WriteLine($"--- Belfast summary ({summary.Latest.Quarter}) ---");
+            Console.WriteLine("Latest price: " + summary.Latest.Price.ToString("£#,0"));
+            Console.WriteLine("vs last quarter: " + summary.QuarterChange.ToString("+£#,0;-£#,0;£0") + " (" + summary.QuarterPercent.ToString("+0.0;-0.0;0.0") + "%)");
+            Console.WriteLine("vs last year: " + summary.YearChange.ToString("+£#,0;-£#,0;£0") + " (" + summary.YearPercent.ToString("+0.0;-0.0;0.0") + "%)");
+
+            if (summary.IsRising)
+            {
+                Console.WriteLine($"Trend: Rising for {summary.Streak} quarters in a row");
+            }
+            else
+            {
+                Console.WriteLine($"Trend: Falling for {summary.Streak} quarters in a row");
+            }
+
+            if (summary.Gap >= 0)
+            {
+                Console.WriteLine($"Budget: {summary.Gap:£#,0} under your {summary.Budget:£#,0} limit");
+            }
+            else
+            {
+                Console.WriteLine($"Budget: {-summary.Gap:£#,0} over your {summary.Budget:£#,0} limit");
+            }
+        }
+    }
+}
