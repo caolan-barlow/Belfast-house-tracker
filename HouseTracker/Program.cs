@@ -11,16 +11,32 @@ var page = await browser.NewPageAsync();
 
 await page.GotoAsync("https://www.finance-ni.gov.uk/publications/ni-house-price-index-statistical-reports");
 
-var download = await page.RunAndWaitForDownloadAsync(async () =>
-{
-    await page.GetByRole(AriaRole.Link, new() { NameRegex = new Regex("All NI House Price Index statistics") }).ClickAsync();
-});
+// Find the spreadsheet link once and reuse it
+var spreadsheetLink = page.GetByRole(AriaRole.Link, new() { NameRegex = new Regex("All NI House Price Index statistics") });
+
+// Read the file's URL from the link, then take the filename from the end of it
+var href = await spreadsheetLink.GetAttributeAsync("href");
+var fileName = Uri.UnescapeDataString(Path.GetFileName(href!));
+
+Console.WriteLine("Latest file on site: " + fileName);
 
 Directory.CreateDirectory("data");
-var filePath = Path.Combine("data", download.SuggestedFilename);
-await download.SaveAsAsync(filePath);
+var filePath = Path.Combine("data", fileName);
 
-Console.WriteLine("Downloaded " + Path.GetFullPath(filePath));
+if (!File.Exists(filePath))
+{
+    var download = await page.RunAndWaitForDownloadAsync(async () =>
+    {
+        await spreadsheetLink.ClickAsync();
+    });
+
+    await download.SaveAsAsync(filePath);
+    Console.WriteLine("Downloaded new file: " + fileName);
+}
+else
+{
+    Console.WriteLine("Already have the latest file, skipping download");
+}
 
 // ---------- 2. Read Belfast prices from Table 5 ----------
 using var workbook = new XLWorkbook(filePath);
@@ -54,9 +70,25 @@ for (int row = headerRow + 1; !sheet.Cell(row, quarterCol).IsEmpty(); row++)
     prices.Add(($"{year} {quarter}", price));
 }
 
-// ---------- 3. Print the latest results ----------
+// ---------- 3. Print each quarter with its change from the previous one ----------
 Console.WriteLine($"Read {prices.Count} quarters for Belfast");
-foreach (var p in prices.TakeLast(5))
+Console.WriteLine();
+Console.WriteLine($"{"Quarter",-10}{"Price",12}{"Change",12}{"Change %",10}");
+
+for (int i = 0; i < prices.Count; i++)
 {
-    Console.WriteLine($"{p.Quarter}: £{p.Price:N0}");
+    var current = prices[i];
+
+    if (i == 0)
+    {
+        // Nothing to compare the first quarter against
+        Console.WriteLine($"{current.Quarter,-10}{current.Price,12:£#,0}{"-",12}{"-",10}");
+        continue;
+    }
+
+    var previous = prices[i - 1];
+    var change = current.Price - previous.Price;
+    var changePercent = change / previous.Price * 100;
+
+    Console.WriteLine($"{current.Quarter,-10}{current.Price,12:£#,0}{change,12:+£#,0;-£#,0;£0}{changePercent,9:+0.0;-0.0;0.0}%");
 }
