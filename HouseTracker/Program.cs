@@ -1,4 +1,5 @@
 ﻿using ClosedXML.Excel;
+using HouseTracker.Data;
 using HouseTracker.Scraping;
 using Microsoft.Playwright;
 using System.Text.RegularExpressions;
@@ -9,36 +10,8 @@ var downloader = new HpiDownloader();
 var filePath = await downloader.GetLatestSpreadsheetAsync();
 
 // ---------- 2. Read Belfast prices from Table 5 ----------
-using var workbook = new XLWorkbook(filePath);
-var sheet = workbook.Worksheet("Table 5");
-
-// Header text wraps across lines in Excel, so collapse whitespace before comparing
-string Clean(string text) => Regex.Replace(text, @"\s+", " ").Trim();
-
-// Find the "Sale Quarter" header; the year column is the one to its left
-var quarterHeader = sheet.CellsUsed().First(c => Clean(c.GetString()) == "Sale Quarter");
-int headerRow = quarterHeader.Address.RowNumber;
-int quarterCol = quarterHeader.Address.ColumnNumber;
-int yearCol = quarterCol - 1;
-
-// Find Belfast's price column on the same header row
-int priceCol = sheet.Row(headerRow).CellsUsed()
-    .First(c => Clean(c.GetString()) == "Belfast Standardised Price")
-    .Address.ColumnNumber;
-
-// Walk down the rows until the quarter column runs out
-var prices = new List<(string Quarter, double Price)>();
-string year = "";
-for (int row = headerRow + 1; !sheet.Cell(row, quarterCol).IsEmpty(); row++)
-{
-    var yearText = sheet.Cell(row, yearCol).GetString();
-    if (yearText != "") year = yearText;   // carry the year forward for Q2–Q4
-
-    var quarter = sheet.Cell(row, quarterCol).GetString();
-    var price = sheet.Cell(row, priceCol).GetDouble();
-
-    prices.Add(($"{year} {quarter}", price));
-}
+var reader = new HpiReader();
+var prices = reader.ReadBelfastPrices(filePath);
 
 // ---------- 3. Print each quarter with its change from the previous one ----------
 Console.WriteLine($"Read {prices.Count} quarters for Belfast");
