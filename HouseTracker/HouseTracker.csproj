@@ -13,9 +13,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Data\" />
+    <Folder Include="Analysis\" />
+	<Folder Include="Data\" />
     <Folder Include="Reports\" />
-    <Folder Include="Scraping\" />
+	<Folder Include="Scraping\" />
   </ItemGroup>
 
 </Project>
